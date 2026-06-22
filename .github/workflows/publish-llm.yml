@@ -32,6 +32,9 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/abahmed/test2-llm
+          tags: |
+            type=raw,value=${{ inputs.version }}
+            type=raw,value=latest
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
