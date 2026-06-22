@@ -1,6 +1,6 @@
  # ── Stage 1: bake the model (full ollama image, build-time only) ──
   FROM --platform=$BUILDPLATFORM ollama/ollama AS bake
-  ARG MODEL_VERSION="v1"
+  ARG MODEL_VERSION="dev"
   ENV OLLAMA_MODELS=/models
   COPY Modelfile /build/Modelfile
   RUN ollama serve & sleep 3 && \
