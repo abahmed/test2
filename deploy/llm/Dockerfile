@@ -22,8 +22,9 @@ LABEL description="Kubernetes incident triage model — baked Modelfile over Qwe
 
 ENV OLLAMA_MODELS=/models HOME=/home/nonroot
 
-RUN mkdir -p /home/nonroot && \
-    echo "nonroot:x:1000:1000:nonroot:/home/nonroot:/bin/sh" >> /etc/passwd && \
-    echo "nonroot:x:1000:" >> /etc/group
+RUN mkdir -p /home/nonroot/.ollama && \
+      echo "nonroot:x:1000:1000:nonroot:/home/nonroot:/bin/sh" >> /etc/passwd && \
+      echo "nonroot:x:1000:" >> /etc/group && \
+      chown -R 1000:1000 /home/nonroot
 COPY --from=bake --chown=1000:1000 /models /models
 USER 1000:1000
