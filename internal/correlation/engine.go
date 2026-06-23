@@ -168,7 +168,6 @@ type Engine struct {
 	digestBuf           []digestEntry
 	lastDigestFlush     time.Time
 	now                 func() time.Time
-	alertingEnabled bool 
 }
 
 func NewEngine(cfg Config) *Engine {
@@ -199,14 +198,6 @@ func NewEngine(cfg Config) *Engine {
 	}
 	return e
 }
-
-func (e *Engine) MarkSeen(key, podName string) {
-	e.mu.Lock(); defer e.mu.Unlock()
-  	if e.seen[key] == nil { e.seen[key] = map[string]int64{} }
-  	e.seen[key][podName] = e.now().Unix() 
-}   
-  
-func (e *Engine) EnableAlerting() { e.mu.Lock(); e.alertingEnabled = true; e.mu.Unlock() }
 
 func (e *Engine) SetSeen(b map[string]map[string]int64) {
 	e.mu.Lock()
@@ -484,11 +475,7 @@ func (e *Engine) Process(ev event.Event, owner string, cs *model.ContainerState)
 	}()
 
 	key := IncidentKey(ev, owner, cs)
-	if !e.alertingEnabled {
-	    // startup: record current state as baseline instead of alerting
-	     e.MarkSeen(key, ev.PodName)
-	    return nil, model.ActionSkip
-	}
+
 	if e.isBaselined(key, ev.PodName) {
 		return nil, model.ActionSkip
 	}
