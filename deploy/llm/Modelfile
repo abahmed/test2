@@ -7,7 +7,7 @@ PARAMETER repeat_penalty 1.1
 PARAMETER num_ctx 4096
 PARAMETER num_predict 256
 PARAMETER num_keep 64
-PARAMETER num_thread 2
+PARAMETER num_thread 1
 PARAMETER stop "<|im_end|>"
 
 SYSTEM """You are a Kubernetes incident triage assistant. Given an incident and \
