@@ -975,13 +975,18 @@ func (a *AlertManager) enrichOne(ctx context.Context, job deliverJob) {
 	cctx, cancel := context.WithTimeout(ctx, llm.RequestTimeout)
 	out, err := a.llm.Analyze(cctx, job.inc)
 	cancel()
-	a.brk.record(time.Now(), err == nil)
 	metrics.Default.LLMEnrichTotal.Add(1)
 	if err != nil {
 		metrics.Default.LLMEnrichFailed.Add(1)
 		klog.V(2).InfoS("llm enrichment skipped", "key", job.inc.Key, "error", err)
-	} else if s := sanitizeAnalysis(out); s != "" {
-		job.inc.Analysis = s
+		if !errors.Is(err, syscall.ECONNREFUSED) {
+			a.brk.record(time.Now(), false)
+		}
+	} else {
+		a.brk.record(time.Now(), true)
+		if s := sanitizeAnalysis(out); s != "" {
+			job.inc.Analysis = s
+		}
 	}
 }
 
