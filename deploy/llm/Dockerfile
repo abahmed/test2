@@ -4,7 +4,7 @@
   ENV OLLAMA_MODELS=/models
   COPY Modelfile /build/Modelfile
   RUN ollama serve & sleep 3 && \
-      ollama pull qwen3:0.6b-q8_0 && \
+      ollama pull qwen3.5:0.8b && \
       ollama create kwatch-triage -f /build/Modelfile && \
       pkill ollama
 
@@ -17,8 +17,8 @@
   ARG MODEL_VERSION="v1"
   LABEL model.version="$MODEL_VERSION" \
         model.name="kwatch-triage" \
-        model.base="qwen3:0.6b-q8_0" \
-        description="kwatch-triage over Qwen3-0.6B (CPU-only slim)"
+        model.base="qwen3.5:0.8b" \
+        description="kwatch-triage over Qwen3.5-0.8B (CPU-only slim)"
 
   RUN apt-get update && \
       apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 && \
