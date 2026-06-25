@@ -992,6 +992,12 @@ func (a *AlertManager) enrichOne(ctx context.Context, job deliverJob) {
 }
 
 func sanitizeAnalysis(s string) string {
+	if i := strings.LastIndex(s, "</think>"); i >= 0 {
+		s = s[i+len("</think>"):]
+    } else if i := strings.Index(s, "<think>"); i >= 0 {
+        s = s[:i]
+    }
+
 	s = strings.Map(func(r rune) rune {
 		if r == '\n' || r == '\t' {
 			return r
