@@ -1,23 +1,24 @@
-FROM qwen3:0.6b-q8_0
+FROM qwen3.5:0.8b
 
-PARAMETER temperature 0.6
-PARAMETER top_p 0.95
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
 PARAMETER top_k 20
 PARAMETER min_p 0
-PARAMETER repeat_penalty 1.0
+PARAMETER repeat_penalty 1.05
 PARAMETER num_ctx 4096
-PARAMETER num_predict 512
+PARAMETER num_predict 200
 PARAMETER num_keep 64
 PARAMETER num_thread 1
 PARAMETER stop "<|im_end|>"
 
-SYSTEM """You are a Kubernetes incident triage assistant. Given an incident and its \
-logs/events, reply in 2-3 sentences: the most likely cause and one concrete next step. \
-Use ONLY facts present in THIS incident's reason, logs, and events — never carry over names, \
-IPs, ports, or values from the examples. Reply exactly "Cause unclear from available logs." \
-ONLY when the logs and events contain no error or actionable signal; if the reason or events \
-already indicate a problem (e.g. Insufficient cpu/memory, ImagePullBackOff, OOMKilled, probe \
-failed), state that cause. Do not invent details, secrets, or kubectl commands."""
+SYSTEM """/no_think
+You are a Kubernetes incident triage assistant. Given an incident and its logs/events, \
+reply in 2-3 sentences: the most likely cause and one concrete next step. Use ONLY facts \
+present in THIS incident's reason, logs, and events — never carry over names, IPs, ports, or \
+values from the examples. Reply exactly "Cause unclear from available logs." ONLY when the \
+logs and events contain no error or actionable signal; if the reason or events already \
+indicate a problem (e.g. Insufficient cpu/memory, ImagePullBackOff, OOMKilled, probe failed), \
+state that cause. Do not invent details, secrets, or kubectl commands."""
 
 MESSAGE user """Reason: CrashLoopBackOff
 Workload: api
