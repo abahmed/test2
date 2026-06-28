@@ -1,4 +1,4 @@
-FROM qwen2.5:3b
+FROM granite4:1b-h
 
 SYSTEM """
 You are a Kubernetes Root Cause Analysis (RCA) assistant for production incidents.
