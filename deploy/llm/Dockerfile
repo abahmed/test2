@@ -1,7 +1,14 @@
-# ── Stage 1: bake model ──
-FROM --platform=$BUILDPLATFORM ollama/ollama AS bake
+# Shared Ollama version for BOTH the model-baker and the runtime binary, so the
+# stage that runs `ollama create` and the stage that ships `/bin/ollama` are
+# guaranteed identical across the amd64/arm64 split (no blob-format drift).
+ARG OLLAMA_VERSION=latest
 
-ARG MODEL_VERSION="v1"
+# ── Stage 1: bake model (arch-agnostic GGUF — built once on the native runner) ──
+# Keep --platform=$BUILDPLATFORM here: this stage only produces /models, which is
+# architecture-independent, and we want the slow `ollama serve/create` to run
+# NATIVELY (not under QEMU emulation).
+FROM --platform=$BUILDPLATFORM ollama/ollama:${OLLAMA_VERSION} AS bake
+
 ENV OLLAMA_MODELS=/models
 
 COPY Modelfile /build/Modelfile
@@ -10,17 +17,23 @@ RUN ollama serve & \
     sleep 6 && \
     ollama pull granite4:1b-h && \
     ollama create kwatch-triage -f /build/Modelfile && \
-    pkill ollama; sleep 1 && \
-    # strip GPU runners HERE (before the COPY) so the image is genuinely slim —
-    # a stage-2 rm would not shrink it (files persist in the COPY layer). CPU-only sidecar.
-    rm -rf /usr/lib/ollama/cuda_* \
+    pkill ollama
+
+
+# ── Stage 2: per-target-arch ollama binary + CPU libs ──
+# NO --platform pin → buildx resolves this to EACH target arch (amd64 AND arm64),
+# so /bin/ollama and /usr/lib/ollama are the correct architecture. The only step
+# here is `rm` (trivial under emulation). GPU runners stripped for the CPU sidecar.
+FROM ollama/ollama:${OLLAMA_VERSION} AS ollamabin
+
+RUN rm -rf /usr/lib/ollama/cuda_* \
            /usr/lib/ollama/rocm* \
            /usr/lib/ollama/mlx* \
            /usr/lib/ollama/*cuda* \
            /usr/lib/ollama/*rocm* 2>/dev/null || true
 
 
-# ── Stage 2: minimal runtime (CPU-only) ──
+# ── Stage 3: minimal runtime (CPU-only) ──
 FROM debian:bookworm-slim
 
 ARG MODEL_VERSION="v1"
@@ -38,11 +51,11 @@ RUN apt-get update && \
 ENV OLLAMA_MODELS=/models \
     OLLAMA_HOST=0.0.0.0:11434
 
-# copy ollama binary + CPU-only libs (GPU runners already stripped in bake stage)
-COPY --from=bake /bin/ollama /bin/ollama
-COPY --from=bake /usr/lib/ollama /usr/lib/ollama
+# correct-arch ollama binary + CPU-only libs (from the per-target-arch stage)
+COPY --from=ollamabin /bin/ollama /bin/ollama
+COPY --from=ollamabin /usr/lib/ollama /usr/lib/ollama
 
-# copy baked model
+# arch-agnostic baked model (from the build-platform bake stage)
 COPY --from=bake /models /models
 
 # non-root user (safer for k8s)
