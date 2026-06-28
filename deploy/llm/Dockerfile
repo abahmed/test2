@@ -8,7 +8,7 @@ COPY Modelfile /build/Modelfile
 
 RUN ollama serve & \
     sleep 6 && \
-    ollama pull qwen2.5:3b && \
+    ollama pull granite4:1b-h && \
     ollama create kwatch-triage -f /build/Modelfile && \
     pkill ollama
 
@@ -20,7 +20,7 @@ ARG MODEL_VERSION="v1"
 
 LABEL model.version="$MODEL_VERSION" \
       model.name="kwatch-triage" \
-      model.base="qwen2.5:3b" \
+      model.base="granite4:1b-h" \
       description="Kwatch RCA model (CPU-only Ollama, Qwen2.5 3B)"
 
 RUN apt-get update && \
