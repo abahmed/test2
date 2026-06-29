@@ -1,8 +1,5 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
-# ----------------------------
-# Download the GGUF model
-# ----------------------------
 FROM debian:bookworm-slim AS model
 
 RUN apt-get update && \
@@ -14,9 +11,6 @@ RUN mkdir -p /models && \
       "https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf" \
       -o /models/model.gguf
 
-# ----------------------------
-# Runtime
-# ----------------------------
 FROM ghcr.io/ggml-org/llama.cpp:server
 
 ARG MODEL_VERSION=v1
@@ -31,15 +25,4 @@ EXPOSE 8080
 
 ENTRYPOINT ["/app/llama-server"]
 
-CMD [
-  "--host","0.0.0.0",
-  "--port","8080",
-  "--model","/models/model.gguf",
-  "--threads","1",
-  "--ctx-size","8192",
-  "--jinja",
-  "--temp","0.7",
-  "--top-p","0.95",
-  "--repeat-penalty","1.1",
-  "--n-predict","256"
-]
+CMD --host 0.0.0.0 --port 8080 --model /models/model.gguf --threads 1 --ctx-size 8192 --jinja --temp 0.7 --top-p 0.95 --repeat-penalty 1.1 --n-predict 256
