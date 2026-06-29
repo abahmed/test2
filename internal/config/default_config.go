@@ -4,7 +4,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		App:                          App{LogFormatter: "text"},
 		IgnoreFailedGracefulShutdown: true,
-		ReportStartupBaseline:        true,
+		ReportStartupBaseline:        false,
 		MaxRecentLogLines:            50,
 		ResyncSeconds:                0,
 		Workers:                      1,
@@ -15,12 +15,12 @@ func DefaultConfig() *Config {
 		JobMonitor:                   JobMonitor{Enabled: true},
 		CronJobMonitor:               CronJobMonitor{Enabled: true},
 		DaemonSetMonitor:             DaemonSetMonitor{Enabled: true, SustainedMinutes: 5},
-		HpaMonitor:                   HpaMonitor{Enabled: true, SustainedMinutes: 10},
+		HpaMonitor:                   HpaMonitor{Enabled: true, SustainedMinutes: 20},
 		Upgrader:                     Upgrader{DisableUpdateCheck: false},
 		HealthCheck:                  HealthCheck{Enabled: true, Port: 8060, Pprof: false, Diagnostics: false},
 		Inhibition:                   Inhibition{NodeSuppressesPods: true},
 		StormConfig:                  StormConfig{Enabled: true, Threshold: 10, WindowMinutes: 5, DigestIntervalMinutes: 5},
-		LLM:                          LLMConfig{Enabled: false},
+		LLM:                          LLMConfig{Enabled: true},
 		Correlation: Correlation{
 			MaxBaseline: 2000,
 			Window:      10, LifecycleInterval: 1,

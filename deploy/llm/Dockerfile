@@ -1,70 +1,55 @@
-# Shared Ollama version for BOTH the model-baker and the runtime binary, so the
-# stage that runs `ollama create` and the stage that ships `/bin/ollama` are
-# guaranteed identical across the amd64/arm64 split (no blob-format drift).
-ARG OLLAMA_VERSION=latest
+# ── Stage 1: download artifacts ──
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS download
 
-# ── Stage 1: bake model (arch-agnostic GGUF — built once on the native runner) ──
-# Keep --platform=$BUILDPLATFORM here: this stage only produces /models, which is
-# architecture-independent, and we want the slow `ollama serve/create` to run
-# NATIVELY (not under QEMU emulation).
-FROM --platform=$BUILDPLATFORM ollama/ollama:${OLLAMA_VERSION} AS bake
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV OLLAMA_MODELS=/models
+ARG TARGETOS TARGETARCH
+ARG LLAMACPP_VERSION="b5098"
 
-COPY Modelfile /build/Modelfile
+# Map arch to llama.cpp release asset suffix
+RUN case "$TARGETARCH" in \
+      amd64)  ASSET="ubuntu-x64" ;; \
+      arm64)  ASSET="ubuntu-arm64" ;; \
+      *)      echo "unsupported arch: $TARGETARCH"; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMACPP_VERSION}/llama-b${LLAMACPP_VERSION}-bin-${ASSET}.tar.gz" \
+    | tar -xz --strip=1 -C /usr/local/bin/ "llama-server"
 
-RUN ollama serve & \
-    sleep 6 && \
-    ollama pull granite4:1b-h && \
-    ollama create kwatch-triage -f /build/Modelfile && \
-    pkill ollama
+# MiniCPM5-1B Q4_K_M GGUF from OpenBMB HF repo
+RUN mkdir -p /models && \
+    curl -fsSL -o /models/model.gguf \
+    "https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf"
 
-
-# ── Stage 2: per-target-arch ollama binary + CPU libs ──
-# NO --platform pin → buildx resolves this to EACH target arch (amd64 AND arm64),
-# so /bin/ollama and /usr/lib/ollama are the correct architecture. The only step
-# here is `rm` (trivial under emulation). GPU runners stripped for the CPU sidecar.
-FROM ollama/ollama:${OLLAMA_VERSION} AS ollamabin
-
-RUN rm -rf /usr/lib/ollama/cuda_* \
-           /usr/lib/ollama/rocm* \
-           /usr/lib/ollama/mlx* \
-           /usr/lib/ollama/*cuda* \
-           /usr/lib/ollama/*rocm* 2>/dev/null || true
-
-
-# ── Stage 3: minimal runtime (CPU-only) ──
+# ── Stage 2: slim final ──
 FROM debian:bookworm-slim
 
 ARG MODEL_VERSION="v1"
-
 LABEL model.version="$MODEL_VERSION" \
       model.name="kwatch-triage" \
-      model.base="granite4:1b-h" \
-      description="Kwatch RCA model (CPU-only Ollama, Granite 4.0-H-1B)"
+      model.base="minicpm5:1b-instruct-q4_K_M" \
+      description="kwatch-triage over MiniCPM5-1B (llama-server CPU)"
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ca-certificates libgomp1 libstdc++6 && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends libstdc++6 libgomp1 ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    adduser --uid 1000 --disabled-password --gecos "" nonroot
 
-ENV OLLAMA_MODELS=/models \
-    OLLAMA_HOST=0.0.0.0:11434
+COPY --from=download /usr/local/bin/llama-server /usr/local/bin/llama-server
+COPY --from=download /models/model.gguf /models/model.gguf
 
-# correct-arch ollama binary + CPU-only libs (from the per-target-arch stage)
-COPY --from=ollamabin /bin/ollama /bin/ollama
-COPY --from=ollamabin /usr/lib/ollama /usr/lib/ollama
+USER nonroot
 
-# arch-agnostic baked model (from the build-platform bake stage)
-COPY --from=bake /models /models
+EXPOSE 8080
 
-# non-root user (safer for k8s)
-RUN useradd -m -u 1000 nonroot && \
-    chown -R 1000:1000 /models
-
-USER 1000:1000
-
-EXPOSE 11434
-
-ENTRYPOINT ["/bin/ollama"]
-CMD ["serve"]
+ENTRYPOINT ["llama-server"]
+CMD ["--host", "127.0.0.1", \
+     "--port", "8080", \
+     "--model", "/models/model.gguf", \
+     "--threads", "1", \
+     "--ctx-size", "8192", \
+     "--jinja", \
+     "--temp", "0.7", \
+     "--top-p", "0.95", \
+     "--repeat-penalty", "1.1", \
+     "--n-predict", "256"]
