@@ -11,23 +11,21 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 ARG TARGETARCH
-
-# Release tag and asset version
 ARG LLAMACPP_TAG="b5098"
 ARG LLAMACPP_BUILD="5098"
 
 RUN set -eux; \
-    case "${TARGETARCH}" in \
+    case "$TARGETARCH" in \
         amd64) ASSET="ubuntu-x64" ;; \
         arm64) ASSET="ubuntu-arm64" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+        *) echo "Unsupported architecture: $TARGETARCH"; exit 1 ;; \
     esac; \
     URL="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMACPP_TAG}/llama-b${LLAMACPP_BUILD}-bin-${ASSET}.tar.gz"; \
-    echo "Downloading ${URL}"; \
+    echo "Downloading $URL"; \
     curl -fL "$URL" -o /tmp/llama.tar.gz; \
     mkdir -p /tmp/llama; \
     tar -xzf /tmp/llama.tar.gz -C /tmp/llama; \
-    find /tmp/llama -type f -name llama-server -exec cp {} /usr/local/bin/llama-server \;; \
+    cp "$(find /tmp/llama -type f -name llama-server | head -n1)" /usr/local/bin/llama-server; \
     chmod +x /usr/local/bin/llama-server
 
 RUN mkdir -p /models && \
@@ -62,15 +60,4 @@ EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/llama-server"]
 
-CMD [
-  "--host","0.0.0.0",
-  "--port","8080",
-  "--model","/models/model.gguf",
-  "--threads","1",
-  "--ctx-size","8192",
-  "--jinja",
-  "--temp","0.7",
-  "--top-p","0.95",
-  "--repeat-penalty","1.1",
-  "--n-predict","256"
-]
+CMD ["--host","0.0.0.0","--port","8080","--model","/models/model.gguf","--threads","1","--ctx-size","8192","--jinja","--temp","0.7","--top-p","0.95","--repeat-penalty","1.1","--n-predict","256"]
