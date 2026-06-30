@@ -3,6 +3,7 @@ package llm
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -74,7 +75,17 @@ func (c *Client) userPrompt(inc *model.Incident) string {
 		fmt.Fprintf(&b, "Rule-based hint: %s\n", c.redactor.scrub(inc.Hint))
 	}
 	if inc.SuppressedPods > 0 {
-		fmt.Fprintf(&b, "SuppressedPods: %d — dependent pod alerts hidden; this incident may be the root cause\n", inc.SuppressedPods)
+		s := fmt.Sprintf("SuppressedPods: %d", inc.SuppressedPods)
+		if len(inc.SuppressedOwners) > 0 {
+			parts := make([]string, 0, len(inc.SuppressedOwners))
+			for o, c := range inc.SuppressedOwners {
+				parts = append(parts, fmt.Sprintf("%s (%d)", o, c))
+			}
+			sort.Strings(parts)
+			s += " across: " + strings.Join(parts, ", ")
+		}
+		s += " — dependent pod alerts hidden; this incident may be the root cause\n"
+		fmt.Fprint(&b, s)
 	}
 	if events != "" {
 		fmt.Fprintf(&b, "\nEvents:\n%s\n", events)
