@@ -11,14 +11,14 @@ import (
 
 const (
 	modelName      = "kwatch-triage"
-	RequestTimeout = 60 * time.Second
+	RequestTimeout = 120 * time.Second
 	maxLogChars    = 6000
 	maxEventChars  = 2000
 )
 
 const systemPrompt = `You are a Kubernetes root cause analysis (RCA) assistant. Given incident details including reason, exit code, container status, restart count, events, and logs, determine the most likely root cause.
 
-Reply in 2-3 sentences with:
+Reply in 1-3 sentences with:
 1. The most likely root cause based on the evidence
 2. One concrete next step to resolve or investigate
 
